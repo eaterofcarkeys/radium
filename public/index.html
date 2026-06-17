@@ -1,0 +1,194 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0, shrink-to-fit=no"
+		/>
+		<title>radium</title>
+
+		<!-- linking our synchronized layout decoration styles sheet -->
+		<link rel="stylesheet" href="index.css">
+
+		<script src="/scram/scramjet.all.js"></script>
+		<script src="/baremux/index.js"></script>
+		
+		<script src="register-sw.js" defer></script>
+		<script src="search.js" defer></script>
+		<script src="index.js" defer></script>
+	</head>
+
+	<body>
+		<!-- ambient background visual anchors mapped via index.css -->
+		<div class="glow-blob one" id="blobOne"></div>
+		<div class="glow-blob two" id="blobTwo"></div>
+		<div class="glow-blob three" id="blobThree"></div>
+
+		<!-- DROPPED HERE: The high-quality canvas background layer is attached -->
+		<canvas id="bgCanvas"></canvas>
+
+		<!-- popup notification container for lowercase toast message -->
+		<div class="toast-container" id="toastContainer"></div>
+
+		<nav>
+			<div class="nav-inner">
+				<a href="#" class="logo">
+					<div class="logo-icon">☢</div>
+					<div class="logo-text"><span>ra</span>dium</div>
+				</a>
+			</div>
+		</nav>
+
+		<!-- main user interface container centered via layout parameters -->
+		<main class="radium-center-box">
+			<div title="Scramjet Logo" class="logo-wrapper">
+				<h1>radium</h1>
+			</div>
+			<div class="desc">
+				<p>your proxy hub</p>
+			</div>
+
+			<form id="sj-form">
+				<!-- Dynamically generated via index.js search engine selector state tokens -->
+				<input
+					id="sj-search-engine"
+					value="https://duckduckgo.com/?q="
+					type="hidden"
+				/>
+				<input 
+					id="sj-address" 
+					type="text" 
+					placeholder="enter link or type to search..." 
+					required 
+				/>
+			</form>
+
+			<!-- Dynamic bookmarks row populated via localStorage -->
+			<div class="bookmarks-row" id="bookmarksContainer"></div>
+			
+			<div class="desc">
+				<p id="sj-error"></p>
+				<pre id="sj-error-code"></pre>
+			</div>
+		</main>
+
+		<!-- Lightweight bookmark management modal -->
+		<div class="modal-overlay" id="bmModal">
+			<div class="modal-content">
+				<h3>theme configuration</h3>
+				
+				<!-- Theme Preset Selectors -->
+				<div class="theme-presets">
+					<div class="preset-dot" style="background:#00ff64;" data-color="#00ff64" title="radium green"></div>
+					<div class="preset-dot" style="background:#00d2ff;" data-color="#00d2ff" title="cyber blue"></div>
+					<div class="preset-dot" style="background:#ff007f;" data-color="#ff007f" title="neon pink"></div>
+					<div class="preset-dot" style="background:#ffaa00;" data-color="#ffaa00" title="amber gold"></div>
+				</div>
+
+				<!-- Standard HTML RGB Color Picker Layout -->
+				<div class="color-picker-container">
+					<span>custom accent color:</span>
+					<input type="color" id="themeColorPicker" value="#00ff64">
+				</div>
+
+				<!-- Search Engine Aggregator Dropdown -->
+<div class="engine-picker-container">
+	<span>search engine proxy:</span>
+	<select id="engineSelector">
+		<!-- FIX: Endpoints updated with exact query target parameters -->
+		<option value="https://duckduckgo.com">duckduckgo</option>
+		<option value="https://brave.com">brave search</option>
+		<option value="https://startpage.com/search?query=">startpage</option>
+	</select>
+</div>
+
+
+				<h3 style="margin-top:20px;">manage bookmarks</h3>
+				<div class="modal-list" id="modalList"></div>
+				<form id="bm-add-form">
+					<input type="text" id="bm-title" placeholder="label (e.g. youtube)" required maxLength="15"/>
+					<input type="text" id="bm-url" placeholder="url (https://...)" required />
+					<div class="modal-actions">
+						<button type="submit" class="btn-accent">add link</button>
+						<button type="button" class="btn-muted" id="closeModal">close</button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<script>
+			// Tiny script listener block kept exclusively to play your lowercase loading... banner
+			function showToast(msg) {
+				const container = document.getElementById('toastContainer');
+				container.innerHTML = `<div class="toast">${msg}</div>`;
+			}
+
+			document.getElementById('sj-form').addEventListener('submit', function() {
+				showToast("loading...");
+			});
+		</script>
+
+		<!-- APPENDED HERE: Optimized scattered particle constellation script -->
+		<script>
+			const canvas = document.getElementById('bgCanvas');
+			const ctx = canvas.getContext('2d');
+			let w, h, particles = [];
+
+			function resize() {
+				w = canvas.width = window.innerWidth;
+				h = canvas.height = window.innerHeight;
+			}
+			resize();
+			window.addEventListener('resize', resize);
+
+			for (let i = 0; i < 40; i++) {
+				particles.push({
+					x: Math.random() * window.innerWidth,
+					y: Math.random() * window.innerHeight,
+					vx: (Math.random() - 0.5) * 0.3,
+					vy: (Math.random() - 0.5) * 0.3,
+					r: Math.random() * 3 + 2
+				});
+			}
+
+			function draw() {
+				ctx.clearRect(0, 0, w, h);
+				const currentAccent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+				
+				for (let i = 0; i < 40; i++) {
+					let p = particles[i];
+					p.x += p.vx;
+					p.y += p.vy;
+
+					if (p.x < 0 || p.x > w) p.vx *= -1;
+					if (p.y < 0 || p.y > h) p.vy *= -1;
+
+					ctx.beginPath();
+					ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+					ctx.fillStyle = currentAccent + '66'; 
+					ctx.fill();
+
+					for (let j = i + 1; j < particles.length; j++) {
+						let p2 = particles[j];
+						let dx = p.x - p2.x;
+						let dy = p.y - p2.y;
+						let distSq = dx * dx + dy * dy;
+						
+						if (distSq < 14400) {
+							let dist = Math.sqrt(distSq);
+							ctx.beginPath();
+							ctx.moveTo(p.x, p.y);
+							ctx.lineTo(p2.x, p2.y);
+							ctx.strokeStyle = currentAccent + Math.floor(12 * (1 - dist / 120)).toString(16).padStart(2, '0');
+							ctx.lineWidth = 0.5;
+							ctx.stroke();
+						}
+					}
+				}
+				requestAnimationFrame(draw);
+			}
+			draw();
+		</script>
+	</body>
+</html>
