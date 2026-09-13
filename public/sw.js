@@ -10,18 +10,18 @@ async function handleRequest(event) {
 	if (scramjet.route(event)) {
 		const response = await scramjet.fetch(event);
 
-		// Cambridge dictionary is an AMP page whose body content gets stripped
-		// by Scramjet's WASM HTML parser. Detect the empty body and re-fetch
-		// the raw HTML with simple regex-based URL rewriting as a fallback.
-		if (event.request.url.includes(CAMBRIDGE_HOST)) {
+		// Add visible debug comment to ALL HTML responses to verify SW is active
+		const ct = response.headers.get("content-type") || "";
+		if (ct.includes("text/html")) {
 			try {
-				const cloned = response.clone();
-				const text = await cloned.text();
+				const text = await response.clone().text();
 				const bodyMatch = text.match(/<body[^>]*>([\s\S]*?)<\/body>/);
 				const bodyContent = bodyMatch ? bodyMatch[1].trim() : "";
-				const dest = event.request.destination;
+				const hasBodyTag = text.includes("<body");
+				const debug = `<!-- SW-DEBUG: url=${event.request.url.substring(0, 120)} dest=${event.request.destination} ct=${ct} hasBodyTag=${hasBodyTag} bodyLen=${bodyContent.length} textLen=${text.length} -->`;
 
-				if (bodyContent.length < 50) {
+				// If Cambridge and body is empty, try the fix
+				if (event.request.url.includes(CAMBRIDGE_HOST) && (bodyContent.length < 50 || !hasBodyTag)) {
 					const prefix = scramjet.config.prefix;
 					const url = new URL(event.request.url);
 					const prefixIndex = url.pathname.indexOf(prefix);
@@ -42,16 +42,20 @@ async function handleRequest(event) {
 					const headers = new Headers(response.headers);
 					headers.set("content-type", "text/html; charset=UTF-8");
 
-					return new Response(fixedHtml, {
+					return new Response(fixedHtml + debug, {
 						status: response.status,
 						statusText: response.statusText,
 						headers,
 					});
 				}
+
+				return new Response(text + debug, {
+					status: response.status,
+					statusText: response.statusText,
+					headers: response.headers,
+				});
 			} catch (e) {
-				// Inject error into response for debugging
-				const errorHtml = `<html><body><pre>Cambridge fix error: ${e.message}\n${e.stack}</pre></body></html>`;
-				return new Response(errorHtml, {
+				return new Response(`<html><body><pre>SW ERROR: ${e.message}\n${e.stack}</pre></body></html>`, {
 					status: 200,
 					headers: { "content-type": "text/html; charset=UTF-8" },
 				});
@@ -63,11 +67,6 @@ async function handleRequest(event) {
 	return fetch(event.request);
 }
 
-/**
- * Simple regex-based HTML URL rewriter.
- * Rewrites absolute, protocol-relative, and absolute-path URLs in common
- * attributes to use the Scramjet proxy prefix.
- */
 function rewriteHtmlUrls(html, baseUrl, prefix) {
 	const enc = (url) => prefix + encodeURIComponent(url);
 	const skip = (url) =>
@@ -80,7 +79,6 @@ function rewriteHtmlUrls(html, baseUrl, prefix) {
 
 	const attrs = "src|href|action|poster|data-src|data-href|data-origin";
 
-	// Absolute and protocol-relative URLs in double quotes
 	html = html.replace(
 		new RegExp(`(\\b(?:${attrs})\\s*=\\s*)((https?:)?//[^"]+)`, "g"),
 		(m, attr, url) => {
@@ -90,7 +88,6 @@ function rewriteHtmlUrls(html, baseUrl, prefix) {
 		}
 	);
 
-	// Absolute path URLs in double quotes
 	html = html.replace(
 		new RegExp(`(\\b(?:${attrs})\\s*=\\s*")(/[^"]+)"`, "g"),
 		(m, attr, url) => {
@@ -103,7 +100,6 @@ function rewriteHtmlUrls(html, baseUrl, prefix) {
 		}
 	);
 
-	// Relative URLs in double quotes (src/href/action only — skip data-* to avoid false positives)
 	html = html.replace(
 		/(\b(?:src|href|action)\s*=\s*")([^"\/:?#][^"]*?)"/g,
 		(m, attr, url) => {
@@ -116,7 +112,6 @@ function rewriteHtmlUrls(html, baseUrl, prefix) {
 		}
 	);
 
-	// Same for single quotes
 	html = html.replace(
 		new RegExp(`(\\b(?:${attrs})\\s*=\\s*)((https?:)?//[^']+)`, "g"),
 		(m, attr, url) => {
@@ -137,7 +132,6 @@ function rewriteHtmlUrls(html, baseUrl, prefix) {
 		}
 	);
 
-	// CSS url() with absolute URLs
 	html = html.replace(/url\((['"]?)(https?:\/\/[^'")]+)(['"]?)\)/g, (m, q1, url, q2) => {
 		if (skip(url)) return m;
 		return `url(${q1}${enc(url)}${q2})`;
