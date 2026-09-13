@@ -35,6 +35,14 @@ const scramjet = new ScramjetController({
 });
 
 scramjet.init();
+scramjet.modifyConfig({
+	siteFlags: {
+		"dictionary\\.cambridge\\.org": {
+			strictRewrites: false,
+			destructureRewrites: false,
+		},
+	},
+});
 
 const connection = new BareMux.BareMuxConnection("/baremux/worker.js");
 
