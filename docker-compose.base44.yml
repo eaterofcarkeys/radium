@@ -1,0 +1,20 @@
+services:
+  app:
+    image: node:20-bookworm
+    working_dir: /app
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+    # Install build tools (python3/make/g++ needed by native deps like libcurl-transport),
+    # then install npm deps, then start with Node's built-in --watch for live reload.
+    command: >
+      sh -c "apt-get update -qq && apt-get install -y -qq python3 make g++ >/dev/null 2>&1;
+             npm install && node --watch src/index.js"
+    restart: unless-stopped
+
+volumes:
+  node_modules:
