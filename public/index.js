@@ -54,12 +54,17 @@ form.addEventListener("submit", (event) => {
 	event.preventDefault();
 	const finalUrl = resolveUrl(address.value.trim());
 
+	// Set URL bar and show browser bar immediately (synchronously)
+	document.getElementById("bbUrl").value = finalUrl;
+	document.getElementById("browserBar").style.display = "flex";
+
 	(async () => {
 		try {
 			await registerSW();
 		} catch (err) {
 			error.textContent = "Failed to register service worker.";
 			errorCode.textContent = err.toString();
+			document.getElementById("toastContainer").innerHTML = "";
 			throw err;
 		}
 
@@ -85,12 +90,16 @@ form.addEventListener("submit", (event) => {
 		frame.go(finalUrl);
 
 		currentFrame = frame;
-		document.getElementById("browserBar").style.display = "flex";
+		document.getElementById("toastContainer").innerHTML = "";
+
+		frame.addEventListener("navigate", (e) => {
+			const bar = document.getElementById("bbUrl");
+			if (document.activeElement !== bar) bar.value = scramjet.decodeUrl(e.url);
+		});
 		frame.addEventListener("urlchange", (e) => {
-			const urlBar = document.getElementById("bbUrl");
-			if (document.activeElement !== urlBar) {
-				urlBar.value = scramjet.decodeUrl(e.url);
-			}
+			const bar = document.getElementById("bbUrl");
+			if (document.activeElement !== bar) bar.value = scramjet.decodeUrl(e.url);
+			document.getElementById("toastContainer").innerHTML = "";
 		});
 	})();
 });
@@ -111,6 +120,7 @@ document.getElementById("bbHome").addEventListener("click", () => {
 	}
 	browserBar.style.display = "none";
 	address.value = "";
+	document.getElementById("toastContainer").innerHTML = "";
 });
 
 urlBar.addEventListener("keydown", (e) => {
