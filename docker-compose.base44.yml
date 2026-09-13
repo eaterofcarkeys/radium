@@ -9,11 +9,14 @@ services:
       - "3000:3000"
     environment:
       - PORT=3000
-    # Install build tools (python3/make/g++ needed by native deps like libcurl-transport),
-    # then install npm deps, then start with Node's built-in --watch for live reload.
+    # First start: install build tools (python3/make/g++ for native deps) + npm packages.
+    # Subsequent starts: skip install entirely (node_modules persisted in volume) and just run.
     command: >
-      sh -c "apt-get update -qq && apt-get install -y -qq python3 make g++ >/dev/null 2>&1;
-             npm install && node --watch src/index.js"
+      sh -c "if [ ! -d node_modules/@mercuryworkshop/scramjet ]; then
+               apt-get update -qq && apt-get install -y -qq python3 make g++ >/dev/null 2>&1;
+               npm install;
+             fi;
+             node --watch src/index.js"
     restart: unless-stopped
 
 volumes:
