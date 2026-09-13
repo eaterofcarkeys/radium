@@ -34,36 +34,25 @@ scramjet.init();
 
 const connection = new BareMux.BareMuxConnection("/baremux/worker.js");
 
-form.addEventListener("submit", (event) => {
-	event.preventDefault();
+let currentFrame = null;
 
-	const input = address.value.trim();
+function resolveUrl(input) {
 	let currentEngineBase = searchEngineInput.value.trim();
-	
-	// FIX 1: Auto-validate and fix engine templates missing the query string parameter 
 	if (!currentEngineBase.includes("?q=") && !currentEngineBase.includes("?query=")) {
 		currentEngineBase = currentEngineBase.replace(/\/+$/, "") + "/?q=";
 	}
-
-	let finalUrl = "";
-
 	if (/^(http|https):\/\//i.test(input)) {
-		try {
-			finalUrl = new URL(input).toString();
-		} catch (e) {
-			finalUrl = currentEngineBase + encodeURIComponent(input);
-		}
-	} 
-	else if (input.includes(".") && !input.includes(" ") && !input.endsWith(".")) {
-		try {
-			finalUrl = new URL(`https://${input}`).toString();
-		} catch (e) {
-			finalUrl = currentEngineBase + encodeURIComponent(input);
-		}
-	} 
-	else {
-		finalUrl = currentEngineBase + encodeURIComponent(input);
+		try { return new URL(input).toString(); } catch (e) { return currentEngineBase + encodeURIComponent(input); }
+	} else if (input.includes(".") && !input.includes(" ") && !input.endsWith(".")) {
+		try { return new URL(`https://${input}`).toString(); } catch (e) { return currentEngineBase + encodeURIComponent(input); }
+	} else {
+		return currentEngineBase + encodeURIComponent(input);
 	}
+}
+
+form.addEventListener("submit", (event) => {
+	event.preventDefault();
+	const finalUrl = resolveUrl(address.value.trim());
 
 	(async () => {
 		try {
@@ -94,7 +83,41 @@ form.addEventListener("submit", (event) => {
 		
 		document.body.appendChild(frame.frame);
 		frame.go(finalUrl);
+
+		currentFrame = frame;
+		document.getElementById("browserBar").style.display = "flex";
+		frame.addEventListener("urlchange", (e) => {
+			const urlBar = document.getElementById("bbUrl");
+			if (document.activeElement !== urlBar) {
+				urlBar.value = scramjet.decodeUrl(e.url);
+			}
+		});
 	})();
+});
+
+// ==========================================================================
+// BROWSER NAVIGATION BAR
+// ==========================================================================
+const browserBar = document.getElementById("browserBar");
+const urlBar = document.getElementById("bbUrl");
+
+document.getElementById("bbBack").addEventListener("click", () => currentFrame?.back());
+document.getElementById("bbForward").addEventListener("click", () => currentFrame?.forward());
+document.getElementById("bbReload").addEventListener("click", () => currentFrame?.reload());
+document.getElementById("bbHome").addEventListener("click", () => {
+	if (currentFrame) {
+		currentFrame.frame.remove();
+		currentFrame = null;
+	}
+	browserBar.style.display = "none";
+	address.value = "";
+});
+
+urlBar.addEventListener("keydown", (e) => {
+	if (e.key === "Enter" && currentFrame) {
+		e.preventDefault();
+		currentFrame.go(resolveUrl(urlBar.value.trim()));
+	}
 });
 
 // ==========================================================================
