@@ -11,31 +11,31 @@ async function handleRequest(event) {
 		if (event.request.url.includes(CAMBRIDGE_HOST)) {
 			const response = await scramjet.fetch(event);
 			try {
-				const text = await response.clone().text();
-				const hasBodyTag = text.includes("<body");
-				const bodyMatch = text.match(/<body[^>]*>([\s\S]*?)<\/body>/);
-				const bodyContent = bodyMatch ? bodyMatch[1].trim() : "";
-				const ct = response.headers.get("content-type") || "NONE";
+				const ct = response.headers.get("content-type") || "";
+				if (ct.includes("text/html")) {
+					let html = await response.text();
 
-				return new Response(
-					`<html><body>
-					<h1>DEBUG INFO</h1>
-					<p>textLen: ${text.length}</p>
-					<p>ct: ${ct}</p>
-					<p>hasBodyTag: ${hasBodyTag}</p>
-					<p>bodyLen: ${bodyContent.length}</p>
-					<p>bodyPreview: ${bodyContent.substring(0, 300).replace(/</g, "&lt;")}</p>
-					<hr>
-					<p>textPreview (first 1000 chars):</p>
-					<pre>${text.substring(0, 1000).replace(/</g, "&lt;")}</pre>
-					</body></html>`,
-					{ status: 200, headers: { "content-type": "text/html; charset=UTF-8" } }
-				);
+					// Make all blocking scripts async so the parser isn't stuck
+					// waiting on slow/unproxied script loads
+					html = html.replace(
+						/<script(\s[^>]*)?\ssrc=([^>]+)>(\s*<\/script>)?/g,
+						(match, attrs, src) => {
+							// Already async or defer? Leave it
+							if (/\b(async|defer)\b/i.test(attrs || "")) return match;
+							return `<script${attrs || ""} async src=${src}></script>`;
+						}
+					);
+
+					const headers = new Headers(response.headers);
+					return new Response(html, {
+						status: response.status,
+						statusText: response.statusText,
+						headers,
+					});
+				}
+				return response;
 			} catch (e) {
-				return new Response(
-					`<html><body><pre>ERROR: ${e.message}\n${e.stack}</pre></body></html>`,
-					{ status: 200, headers: { "content-type": "text/html; charset=UTF-8" } }
-				);
+				return response;
 			}
 		}
 		return scramjet.fetch(event);
