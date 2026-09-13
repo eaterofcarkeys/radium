@@ -32,17 +32,17 @@ const scramjet = new ScramjetController({
 		allowInvalidJs: true,
 		allowFailedIntercepts: true,
 	},
-});
-
-scramjet.init();
-scramjet.modifyConfig({
 	siteFlags: {
 		"dictionary\\.cambridge\\.org": {
 			strictRewrites: false,
 			destructureRewrites: false,
+			scramitize: false,
+			serviceworkers: false,
 		},
 	},
 });
+
+scramjet.init();
 
 const connection = new BareMux.BareMuxConnection("/baremux/worker.js");
 
