@@ -28,6 +28,10 @@ const scramjet = new ScramjetController({
 		all: "/scram/scramjet.all.js",
 		sync: "/scram/scramjet.sync.js",
 	},
+	flags: {
+		allowInvalidJs: true,
+		allowFailedIntercepts: true,
+	},
 });
 
 scramjet.init();
@@ -50,11 +54,24 @@ function resolveUrl(input) {
 	}
 }
 
+let loadingTimeout = null;
+
+function showLoading() {
+	document.getElementById("loadingOverlay").style.display = "flex";
+	clearTimeout(loadingTimeout);
+	loadingTimeout = setTimeout(hideLoading, 15000);
+}
+
+function hideLoading() {
+	document.getElementById("loadingOverlay").style.display = "none";
+	clearTimeout(loadingTimeout);
+}
+
 form.addEventListener("submit", (event) => {
 	event.preventDefault();
+	showLoading();
 	const finalUrl = resolveUrl(address.value.trim());
 
-	// Set URL bar and show browser bar immediately (synchronously)
 	document.getElementById("bbUrl").value = finalUrl;
 	document.getElementById("browserBar").style.display = "flex";
 
@@ -64,7 +81,7 @@ form.addEventListener("submit", (event) => {
 		} catch (err) {
 			error.textContent = "Failed to register service worker.";
 			errorCode.textContent = err.toString();
-			document.getElementById("toastContainer").innerHTML = "";
+			hideLoading();
 			throw err;
 		}
 
@@ -90,16 +107,16 @@ form.addEventListener("submit", (event) => {
 		frame.go(finalUrl);
 
 		currentFrame = frame;
-		document.getElementById("toastContainer").innerHTML = "";
 
-		frame.addEventListener("navigate", (e) => {
-			const bar = document.getElementById("bbUrl");
-			if (document.activeElement !== bar) bar.value = scramjet.decodeUrl(e.url);
+		frame.addEventListener("navigate", () => hideLoading());
+		frame.addEventListener("urlchange", () => hideLoading());
+		frame.addEventListener("contextInit", () => {
+			hideLoading();
+			setTimeout(() => { document.getElementById("bbUrl").value = finalUrl; }, 300);
 		});
-		frame.addEventListener("urlchange", (e) => {
-			const bar = document.getElementById("bbUrl");
-			if (document.activeElement !== bar) bar.value = scramjet.decodeUrl(e.url);
-			document.getElementById("toastContainer").innerHTML = "";
+		frame.frame.addEventListener("load", () => {
+			hideLoading();
+			setTimeout(() => { document.getElementById("bbUrl").value = finalUrl; }, 300);
 		});
 	})();
 });
@@ -110,9 +127,9 @@ form.addEventListener("submit", (event) => {
 const browserBar = document.getElementById("browserBar");
 const urlBar = document.getElementById("bbUrl");
 
-document.getElementById("bbBack").addEventListener("click", () => currentFrame?.back());
-document.getElementById("bbForward").addEventListener("click", () => currentFrame?.forward());
-document.getElementById("bbReload").addEventListener("click", () => currentFrame?.reload());
+document.getElementById("bbBack").addEventListener("click", () => { showLoading(); currentFrame?.back(); });
+document.getElementById("bbForward").addEventListener("click", () => { showLoading(); currentFrame?.forward(); });
+document.getElementById("bbReload").addEventListener("click", () => { showLoading(); currentFrame?.reload(); });
 document.getElementById("bbHome").addEventListener("click", () => {
 	if (currentFrame) {
 		currentFrame.frame.remove();
@@ -120,12 +137,13 @@ document.getElementById("bbHome").addEventListener("click", () => {
 	}
 	browserBar.style.display = "none";
 	address.value = "";
-	document.getElementById("toastContainer").innerHTML = "";
+	hideLoading();
 });
 
 urlBar.addEventListener("keydown", (e) => {
 	if (e.key === "Enter" && currentFrame) {
 		e.preventDefault();
+		showLoading();
 		currentFrame.go(resolveUrl(urlBar.value.trim()));
 	}
 });
