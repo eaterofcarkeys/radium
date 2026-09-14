@@ -31,6 +31,20 @@
 		<!-- popup notification container for lowercase toast message -->
 		<div class="toast-container" id="toastContainer"></div>
 
+		<!-- browser navigation bar shown when browsing -->
+		<div class="browser-bar" id="browserBar">
+			<button class="bb-btn" id="bbBack" title="back">‹</button>
+			<button class="bb-btn" id="bbForward" title="forward">›</button>
+			<button class="bb-btn" id="bbReload" title="reload">⟳</button>
+			<input type="text" id="bbUrl" class="bb-url" placeholder="search or enter url..." />
+			<button class="bb-btn" id="bbHome" title="home">⌂</button>
+		</div>
+
+		<!-- full-screen loading overlay with spinner -->
+		<div class="loading-overlay" id="loadingOverlay">
+			<div class="loading-spinner"></div>
+		</div>
+
 		<nav>
 			<div class="nav-inner">
 				<a href="#" class="logo">
@@ -118,14 +132,13 @@
 		</div>
 
 		<script>
-			// Tiny script listener block kept exclusively to play your lowercase loading... banner
 			function showToast(msg) {
 				const container = document.getElementById('toastContainer');
 				container.innerHTML = `<div class="toast">${msg}</div>`;
 			}
 
 			document.getElementById('sj-form').addEventListener('submit', function() {
-				showToast("loading...");
+				document.getElementById('loadingOverlay').style.display = 'flex';
 			});
 		</script>
 

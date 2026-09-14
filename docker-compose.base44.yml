@@ -1,0 +1,23 @@
+services:
+  app:
+    image: node:20-bookworm
+    working_dir: /app
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+    # First start: install build tools (python3/make/g++ for native deps) + npm packages.
+    # Subsequent starts: skip install entirely (node_modules persisted in volume) and just run.
+    command: >
+      sh -c "if [ ! -d node_modules/@mercuryworkshop/scramjet ]; then
+               apt-get update -qq && apt-get install -y -qq python3 make g++ >/dev/null 2>&1;
+               npm install;
+             fi;
+             node --watch src/index.js"
+    restart: unless-stopped
+
+volumes:
+  node_modules:

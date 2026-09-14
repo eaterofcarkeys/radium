@@ -28,42 +28,60 @@ const scramjet = new ScramjetController({
 		all: "/scram/scramjet.all.js",
 		sync: "/scram/scramjet.sync.js",
 	},
+	flags: {
+		allowInvalidJs: true,
+		allowFailedIntercepts: true,
+	},
+	siteFlags: {
+		"dictionary\\.cambridge\\.org": {
+			strictRewrites: false,
+			destructureRewrites: false,
+			scramitize: false,
+			serviceworkers: false,
+		},
+	},
 });
 
 scramjet.init();
 
 const connection = new BareMux.BareMuxConnection("/baremux/worker.js");
 
-form.addEventListener("submit", (event) => {
-	event.preventDefault();
+let currentFrame = null;
 
-	const input = address.value.trim();
+function resolveUrl(input) {
 	let currentEngineBase = searchEngineInput.value.trim();
-	
-	// FIX 1: Auto-validate and fix engine templates missing the query string parameter 
 	if (!currentEngineBase.includes("?q=") && !currentEngineBase.includes("?query=")) {
 		currentEngineBase = currentEngineBase.replace(/\/+$/, "") + "/?q=";
 	}
-
-	let finalUrl = "";
-
 	if (/^(http|https):\/\//i.test(input)) {
-		try {
-			finalUrl = new URL(input).toString();
-		} catch (e) {
-			finalUrl = currentEngineBase + encodeURIComponent(input);
-		}
-	} 
-	else if (input.includes(".") && !input.includes(" ") && !input.endsWith(".")) {
-		try {
-			finalUrl = new URL(`https://${input}`).toString();
-		} catch (e) {
-			finalUrl = currentEngineBase + encodeURIComponent(input);
-		}
-	} 
-	else {
-		finalUrl = currentEngineBase + encodeURIComponent(input);
+		try { return new URL(input).toString(); } catch (e) { return currentEngineBase + encodeURIComponent(input); }
+	} else if (input.includes(".") && !input.includes(" ") && !input.endsWith(".")) {
+		try { return new URL(`https://${input}`).toString(); } catch (e) { return currentEngineBase + encodeURIComponent(input); }
+	} else {
+		return currentEngineBase + encodeURIComponent(input);
 	}
+}
+
+let loadingTimeout = null;
+
+function showLoading() {
+	document.getElementById("loadingOverlay").style.display = "flex";
+	clearTimeout(loadingTimeout);
+	loadingTimeout = setTimeout(hideLoading, 15000);
+}
+
+function hideLoading() {
+	document.getElementById("loadingOverlay").style.display = "none";
+	clearTimeout(loadingTimeout);
+}
+
+form.addEventListener("submit", (event) => {
+	event.preventDefault();
+	showLoading();
+	const finalUrl = resolveUrl(address.value.trim());
+
+	document.getElementById("bbUrl").value = finalUrl;
+	document.getElementById("browserBar").style.display = "flex";
 
 	(async () => {
 		try {
@@ -71,6 +89,7 @@ form.addEventListener("submit", (event) => {
 		} catch (err) {
 			error.textContent = "Failed to register service worker.";
 			errorCode.textContent = err.toString();
+			hideLoading();
 			throw err;
 		}
 
@@ -94,7 +113,50 @@ form.addEventListener("submit", (event) => {
 		
 		document.body.appendChild(frame.frame);
 		frame.go(finalUrl);
+
+		currentFrame = frame;
+
+		frame.addEventListener("navigate", () => hideLoading());
+		frame.addEventListener("urlchange", (e) => {
+			hideLoading();
+			if (e.url) document.getElementById("bbUrl").value = e.url;
+		});
+		frame.addEventListener("contextInit", () => {
+			hideLoading();
+			setTimeout(() => { document.getElementById("bbUrl").value = finalUrl; }, 300);
+		});
+		frame.frame.addEventListener("load", () => {
+			hideLoading();
+			setTimeout(() => { document.getElementById("bbUrl").value = finalUrl; }, 300);
+		});
 	})();
+});
+
+// ==========================================================================
+// BROWSER NAVIGATION BAR
+// ==========================================================================
+const browserBar = document.getElementById("browserBar");
+const urlBar = document.getElementById("bbUrl");
+
+document.getElementById("bbBack").addEventListener("click", () => { showLoading(); currentFrame?.back(); });
+document.getElementById("bbForward").addEventListener("click", () => { showLoading(); currentFrame?.forward(); });
+document.getElementById("bbReload").addEventListener("click", () => { showLoading(); currentFrame?.reload(); });
+document.getElementById("bbHome").addEventListener("click", () => {
+	if (currentFrame) {
+		currentFrame.frame.remove();
+		currentFrame = null;
+	}
+	browserBar.style.display = "none";
+	address.value = "";
+	hideLoading();
+});
+
+urlBar.addEventListener("keydown", (e) => {
+	if (e.key === "Enter" && currentFrame) {
+		e.preventDefault();
+		showLoading();
+		currentFrame.go(resolveUrl(urlBar.value.trim()));
+	}
 });
 
 // ==========================================================================
