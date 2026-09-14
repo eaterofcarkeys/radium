@@ -15,6 +15,13 @@ async function handleRequest(event) {
 				if (ct.includes("text/html")) {
 					let html = await response.text();
 
+					// Ensure the page has an opaque background so the proxy
+					// homepage doesn't show through the transparent iframe
+					html = html.replace(
+						/<head([^>]*)>/i,
+						'<head$1><style>html,body{background:#fff !important;}</style>'
+					);
+
 					// Make all blocking scripts async so the parser isn't stuck
 					// waiting on slow/unproxied script loads
 					html = html.replace(
