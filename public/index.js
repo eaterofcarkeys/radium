@@ -117,7 +117,10 @@ form.addEventListener("submit", (event) => {
 		currentFrame = frame;
 
 		frame.addEventListener("navigate", () => hideLoading());
-		frame.addEventListener("urlchange", () => hideLoading());
+		frame.addEventListener("urlchange", (e) => {
+			hideLoading();
+			if (e.url) document.getElementById("bbUrl").value = e.url;
+		});
 		frame.addEventListener("contextInit", () => {
 			hideLoading();
 			setTimeout(() => { document.getElementById("bbUrl").value = finalUrl; }, 300);

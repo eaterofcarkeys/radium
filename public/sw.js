@@ -22,6 +22,8 @@ async function handleRequest(event) {
 						(match, attrs, src) => {
 							// Already async or defer? Leave it
 							if (/\b(async|defer)\b/i.test(attrs || "")) return match;
+							// Don't async Scramjet's own scripts — they must load in order
+							if (src.includes("/scram/") || src.includes("data:")) return match;
 							return `<script${attrs || ""} async src=${src}></script>`;
 						}
 					);
